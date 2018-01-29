@@ -1,7 +1,8 @@
 from threading import Thread
-import keyboard
-import requests
-import json
+from threading import Timer
+import keyboard, requests, json
+import OPi.GPIO as GPIO
+from RPLCD import CharLCD
 
 class CardData:
     cardId = -1
@@ -43,11 +44,49 @@ class ItgDriver(CoinDriver):
         return data.cardId in self.ids
 
 class FlowerDriver(CoinDriver):
-    def __init__(self, token, endpoint):
+    status = "Startup"
+    message = ""
+    lcd = False
+    clearTimer = False
+
+    def updateLcd(self):
+        if self.lcd:
+            self.lcd.clear()
+            self.lcd.cursor_pos = (0,0)
+            self.lcd.write_string("Status: " + self.status)
+            self.lcd.cursor_pos = (1,0)
+            self.lcd.write_string(self.message)
+
+    def setStatus(self, status):
+        self.status = status
+        self.updateLcd()
+
+    def timerClear(self):
+        self.message = ""
+        self.updateLcd()
+
+    def setMessage(self, message):
+        self.message = message
+        self.updateLcd()
+        if self.clearTimer:
+            self.clearTimer.cancel()
+
+        self.clearTimer = Timer(10, self.timerClear)
+        self.clearTimer.start()
+
+    def __init__(self, token, endpoint, lcd):
         self.token = token
         self.endpoint = endpoint
+        self.lcd = lcd
+        self.updateLcd()
+        self.checkConfig()
+
+    def checkConfig(self):
+        self.setStatus("Online")
+        return True
 
     def checkCardData(self, data):
+        self.setMessage("Checking card")
         try:
             response = requests.post(
                 self.endpoint,
@@ -60,16 +99,15 @@ class FlowerDriver(CoinDriver):
             if response.status == 'SUCCESS':
                 return True
 
+            self.setMessage("Not allowed")
             return False
         except Exception:
+            self.setMessage("Check failed")
             return False
 
 class Scanner(Thread):
     running = False
     name = ""
-
-    def __init__(self, driver):
-        self.__init__(driver, "")
 
     def __init__(self, driver, name):
         Thread.__init__(self)
@@ -99,3 +137,4 @@ class KeyboardScanner(Scanner):
         typed = next(keyboard.get_typed_strings(recorded))
         if typed:
             self.foundCard(CardData(self, typed))
+

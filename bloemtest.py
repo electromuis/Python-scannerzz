@@ -1,17 +1,20 @@
 from scanner import *
 from RPLCD import CharLCD
-import OPi.GPIO as GPIO
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BOARD)
 
 driver = FlowerDriver(
     "abc",
-    "http://localhost:8080/check.php",
+    "http://24doze.electromuis.nl/test.php",
+    32,
     CharLCD(
         cols=16,
         rows=2,
-        numbering_mode=GPIO.BCM,
+        numbering_mode=GPIO.BOARD,
         pin_rs=36,
         pin_e=38,
-        pins_data=[37,35,33,31]
+        pins_data=[31,33,35,37]
     )
 )
 

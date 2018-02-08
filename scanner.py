@@ -1,8 +1,10 @@
 from threading import Thread
 from threading import Timer
+from time import sleep
 import keyboard, requests, json
-import OPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 from RPLCD import CharLCD
+from pprint import pprint
 
 class CardData:
     cardId = -1
@@ -74,10 +76,14 @@ class FlowerDriver(CoinDriver):
         self.clearTimer = Timer(10, self.timerClear)
         self.clearTimer.start()
 
-    def __init__(self, token, endpoint, lcd):
+    def __init__(self, token, endpoint, relayPin, lcd):
         self.token = token
         self.endpoint = endpoint
         self.lcd = lcd
+        self.relayPin = relayPin
+
+        GPIO.setup(self.relayPin, GPIO.IN)
+
         self.updateLcd()
         self.checkConfig()
 
@@ -96,13 +102,20 @@ class FlowerDriver(CoinDriver):
                 })
             ).json()
 
-            if response.status == 'SUCCESS':
+            self.setMessage(response.get('message'))
+
+            if response.get('success') == True:
+                sleep(0.1)
+                GPIO.setup(self.relayPin, GPIO.OUT)
+                sleep(0.2)
+                GPIO.setup(self.relayPin, GPIO.IN)
+                sleep(0.1)
                 return True
 
-            self.setMessage("Not allowed")
             return False
-        except Exception:
+        except Exception, e:
             self.setMessage("Check failed")
+            print "Check error: " + str(e)
             return False
 
 class Scanner(Thread):
